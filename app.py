@@ -432,9 +432,6 @@ if st.session_state.file_uploaded and st.session_state.captions:
 else:
     st.info("No annotations saved yet. Start annotating sentences!")
 
-else:
-st.info
-
 # Load annotations on initial page load
 if not st.session_state.get('loaded_initial', False):
     load_annotations()

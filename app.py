@@ -414,18 +414,19 @@ if st.session_state.file_uploaded and st.session_state.captions:
 
     if st.session_state.annotated_keys:
         st.info("Please upload a text file containing image descriptions to start annotation.")
-    st.markdown("""
-    ### Instructions:
-    1. Upload a text file with image descriptions (one per line)
-    2. Each caption will be split into sentences automatically
-    3. Navigate between sentences using the sidebar controls
-    4. For each sentence, annotate with Subject-Predicate-Object
-    5. Save your annotations
-    6. Export all annotations when done
-
-    Your progress is automatically saved and will be available when you return.
-    """)(
-        f"You've annotated {len(st.session_state.annotated_keys)} out of {total_sentences} sentences across {len(st.session_state.captions)} captions.")
+        st.markdown("""
+        ### Instructions:
+        1. Upload a text file with image descriptions (one per line)
+        2. Each caption will be split into sentences automatically
+        3. Navigate between sentences using the sidebar controls
+        4. For each sentence, annotate with Subject-Predicate-Object
+        5. Save your annotations
+        6. Export all annotations when done
+    
+        Your progress is automatically saved and will be available when you return.
+        """)
+    else:
+        st.info(f"You've annotated {len(st.session_state.annotated_keys)} out of {total_sentences} sentences across {len(st.session_state.captions)} captions.")
 
     if st.button("View & Export Annotations"):
         export_annotations()

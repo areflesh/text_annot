@@ -131,24 +131,37 @@ def save_current_annotation():
     sentence_idx = st.session_state.current_sentence_index
 
     # Create a unique key for this sentence
-    key = f"{caption_idx}_{sentence_idx}"
+    sentence_key = f"{caption_idx}_{sentence_idx}"
 
     subject = st.session_state.get('subject', '')
     predicate = st.session_state.get('predicate', '')
     object = st.session_state.get('object', '')
 
     if subject and predicate and object:
-        st.session_state.annotations[key] = {
-            'caption': st.session_state.captions[caption_idx],
-            'sentence': st.session_state.sentences[sentence_idx],
+        # Get the list of annotations for this sentence or create a new one
+        if sentence_key not in st.session_state.annotations:
+            st.session_state.annotations[sentence_key] = {
+                'caption': st.session_state.captions[caption_idx],
+                'sentence': st.session_state.sentences[sentence_idx],
+                'triplets': []
+            }
+
+        # Add the new triplet
+        st.session_state.annotations[sentence_key]['triplets'].append({
             'subject': subject,
             'predicate': predicate,
             'object': object,
             'timestamp': datetime.now().isoformat()
-        }
-        st.session_state.annotated_keys.add(key)
+        })
+
+        st.session_state.annotated_keys.add(sentence_key)
         save_annotations()
-        st.success("Annotation saved!")
+        st.success("Annotation saved! You can add more annotations for this sentence if needed.")
+
+        # Clear input fields for next annotation
+        st.session_state.subject = ""
+        st.session_state.predicate = ""
+        st.session_state.object = ""
     else:
         st.warning("Please fill all fields before saving.")
 
@@ -205,11 +218,17 @@ def export_annotations():
             sentences = split_caption_into_sentences(caption)
             total_sentences += len(sentences)
 
+        # Count total triplets
+        total_triplets = 0
+        for key, anno in st.session_state.annotations.items():
+            total_triplets += len(anno.get('triplets', []))
+
         export_data = {
             'filename': st.session_state.filename,
             'total_captions': len(st.session_state.captions),
             'total_sentences': total_sentences,
             'annotated_sentences': len(st.session_state.annotated_keys),
+            'total_triplets': total_triplets,
             'annotations': st.session_state.annotations
         }
 
@@ -221,22 +240,40 @@ def export_annotations():
                 caption_idx = int(key_parts[0]) + 1 if len(key_parts) > 0 else 0
                 sentence_idx = int(key_parts[1]) + 1 if len(key_parts) > 1 else 0
 
-                annotations_list.append({
-                    'Caption_Index': caption_idx,
-                    'Sentence_Index': sentence_idx,
-                    'Caption': anno.get('caption', ''),
-                    'Sentence': anno.get('sentence', ''),
-                    'Subject': anno.get('subject', ''),
-                    'Predicate': anno.get('predicate', ''),
-                    'Object': anno.get('object', '')
-                })
+                # Handle multiple triplets per sentence
+                triplets = anno.get('triplets', [])
+
+                if triplets:
+                    for i, triplet in enumerate(triplets):
+                        annotations_list.append({
+                            'Caption_Index': caption_idx,
+                            'Sentence_Index': sentence_idx,
+                            'Triplet_Index': i + 1,
+                            'Caption': anno.get('caption', ''),
+                            'Sentence': anno.get('sentence', ''),
+                            'Subject': triplet.get('subject', ''),
+                            'Predicate': triplet.get('predicate', ''),
+                            'Object': triplet.get('object', '')
+                        })
+                else:
+                    # For backward compatibility with old format
+                    annotations_list.append({
+                        'Caption_Index': caption_idx,
+                        'Sentence_Index': sentence_idx,
+                        'Triplet_Index': 1,
+                        'Caption': anno.get('caption', ''),
+                        'Sentence': anno.get('sentence', ''),
+                        'Subject': anno.get('subject', ''),
+                        'Predicate': anno.get('predicate', ''),
+                        'Object': anno.get('object', '')
+                    })
             except (IndexError, ValueError) as e:
                 st.warning(f"Skipping malformed annotation key: {key}")
                 continue
 
         df = pd.DataFrame(annotations_list)
         if not df.empty:
-            df = df.sort_values(['Caption_Index', 'Sentence_Index'])
+            df = df.sort_values(['Caption_Index', 'Sentence_Index', 'Triplet_Index'])
 
         # For download as JSON
         json_data = json.dumps(export_data, indent=2)
@@ -346,7 +383,7 @@ st.title("Image Description Annotation Tool")
 if st.session_state.file_uploaded and st.session_state.captions:
     caption_idx = st.session_state.current_caption_index
     sentence_idx = st.session_state.current_sentence_index
-    key = f"{caption_idx}_{sentence_idx}"
+    sentence_key = f"{caption_idx}_{sentence_idx}"
 
     # Display current caption and highlight current sentence
     st.subheader(f"Caption #{caption_idx + 1}")
@@ -365,35 +402,36 @@ if st.session_state.file_uploaded and st.session_state.captions:
     st.markdown("**Current sentence to annotate:**")
 
     # Highlight based on whether it's already annotated
-    if key in st.session_state.annotated_keys:
+    if sentence_key in st.session_state.annotated_keys:
         st.markdown(
             f"<div style='background-color:#e6ffe6;padding:10px;border-radius:5px;font-weight:bold;'>{current_sentence}</div>",
             unsafe_allow_html=True)
+
+        # Show existing annotations for this sentence
+        st.markdown("**Existing annotations for this sentence:**")
+
+        existing_triplets = st.session_state.annotations[sentence_key]['triplets']
+
+        for i, triplet in enumerate(existing_triplets):
+            with st.expander(f"Annotation #{i + 1}"):
+                st.markdown(f"**Subject:** {triplet['subject']}")
+                st.markdown(f"**Predicate:** {triplet['predicate']}")
+                st.markdown(f"**Object:** {triplet['object']}")
     else:
         st.markdown(
             f"<div style='background-color:#fff0f0;padding:10px;border-radius:5px;font-weight:bold;'>{current_sentence}</div>",
             unsafe_allow_html=True)
 
     # Annotation form
-    st.subheader("Subject-Predicate-Object Annotation")
+    st.subheader("Add New Subject-Predicate-Object Annotation")
 
-    # Set default values for the form fields before rendering widgets
-    if key in st.session_state.annotations:
-        existing_anno = st.session_state.annotations[key]
-        if 'subject' not in st.session_state:
-            st.session_state.subject = existing_anno['subject']
-        if 'predicate' not in st.session_state:
-            st.session_state.predicate = existing_anno['predicate']
-        if 'object' not in st.session_state:
-            st.session_state.object = existing_anno['object']
-    else:
-        # Initialize empty if not in session state
-        if 'subject' not in st.session_state:
-            st.session_state.subject = ""
-        if 'predicate' not in st.session_state:
-            st.session_state.predicate = ""
-        if 'object' not in st.session_state:
-            st.session_state.object = ""
+    # Initialize empty if not in session state
+    if 'subject' not in st.session_state:
+        st.session_state.subject = ""
+    if 'predicate' not in st.session_state:
+        st.session_state.predicate = ""
+    if 'object' not in st.session_state:
+        st.session_state.object = ""
 
     col1, col2, col3 = st.columns(3)
     with col1:

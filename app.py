@@ -216,15 +216,23 @@ def export_annotations():
         # Convert to DataFrame for display
         annotations_list = []
         for key, anno in st.session_state.annotations.items():
-            annotations_list.append({
-                'Caption_Index': int(key.split('_')[0]) + 1,  # Extract from key, convert to 1-indexed for display
-                'Sentence_Index': int(key.split('_')[1]) + 1,  # Extract from key, convert to 1-indexed for display
-                'Caption': anno['caption'],
-                'Sentence': anno['sentence'],
-                'Subject': anno['subject'],
-                'Predicate': anno['predicate'],
-                'Object': anno['object']
-            })
+            try:
+                key_parts = key.split('_')
+                caption_idx = int(key_parts[0]) + 1 if len(key_parts) > 0 else 0
+                sentence_idx = int(key_parts[1]) + 1 if len(key_parts) > 1 else 0
+
+                annotations_list.append({
+                    'Caption_Index': caption_idx,
+                    'Sentence_Index': sentence_idx,
+                    'Caption': anno.get('caption', ''),
+                    'Sentence': anno.get('sentence', ''),
+                    'Subject': anno.get('subject', ''),
+                    'Predicate': anno.get('predicate', ''),
+                    'Object': anno.get('object', '')
+                })
+            except (IndexError, ValueError) as e:
+                st.warning(f"Skipping malformed annotation key: {key}")
+                continue
 
         df = pd.DataFrame(annotations_list)
         if not df.empty:
@@ -244,7 +252,9 @@ def export_annotations():
         st.dataframe(df)
 
     except Exception as e:
-        st.error(f"Error exporting annotations: {e}")
+        st.error(f"Error exporting annotations: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
 
 
 # UI Components

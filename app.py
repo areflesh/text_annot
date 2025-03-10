@@ -139,8 +139,6 @@ def save_current_annotation():
 
     if subject and predicate and object:
         st.session_state.annotations[key] = {
-            'caption_index': caption_idx,
-            'sentence_index': sentence_idx,
             'caption': st.session_state.captions[caption_idx],
             'sentence': st.session_state.sentences[sentence_idx],
             'subject': subject,
@@ -219,8 +217,8 @@ def export_annotations():
         annotations_list = []
         for key, anno in st.session_state.annotations.items():
             annotations_list.append({
-                'Caption_Index': anno['caption_index'] + 1,  # Convert to 1-indexed for display
-                'Sentence_Index': anno['sentence_index'] + 1,  # Convert to 1-indexed for display
+                'Caption_Index': int(key.split('_')[0]) + 1,  # Extract from key, convert to 1-indexed for display
+                'Sentence_Index': int(key.split('_')[1]) + 1,  # Extract from key, convert to 1-indexed for display
                 'Caption': anno['caption'],
                 'Sentence': anno['sentence'],
                 'Subject': anno['subject'],
@@ -413,25 +411,27 @@ if st.session_state.file_uploaded and st.session_state.captions:
         total_sentences += len(sentences)
 
     if st.session_state.annotated_keys:
-        st.info("Please upload a text file containing image descriptions to start annotation.")
-        st.markdown("""
-        ### Instructions:
-        1. Upload a text file with image descriptions (one per line)
-        2. Each caption will be split into sentences automatically
-        3. Navigate between sentences using the sidebar controls
-        4. For each sentence, annotate with Subject-Predicate-Object
-        5. Save your annotations
-        6. Export all annotations when done
-    
-        Your progress is automatically saved and will be available when you return.
-        """)
-    else:
-        st.info(f"You've annotated {len(st.session_state.annotated_keys)} out of {total_sentences} sentences across {len(st.session_state.captions)} captions.")
+        st.info(
+            f"You've annotated {len(st.session_state.annotated_keys)} out of {total_sentences} sentences across {len(st.session_state.captions)} captions.")
 
-    if st.button("View & Export Annotations"):
-        export_annotations()
+        if st.button("View & Export Annotations"):
+            export_annotations()
+    else:
+        st.info("No annotations saved yet. Start annotating sentences!")
+
 else:
-    st.info("No annotations saved yet. Start annotating sentences!")
+    st.info("Please upload a text file containing image descriptions to start annotation.")
+    st.markdown("""
+    ### Instructions:
+    1. Upload a text file with image descriptions (one per line)
+    2. Each caption will be split into sentences automatically
+    3. Navigate between sentences using the sidebar controls
+    4. For each sentence, annotate with Subject-Predicate-Object
+    5. Save your annotations
+    6. Export all annotations when done
+
+    Your progress is automatically saved and will be available when you return.
+    """)
 
 # Load annotations on initial page load
 if not st.session_state.get('loaded_initial', False):
